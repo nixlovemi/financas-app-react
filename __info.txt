@@ -1,0 +1,3 @@
+>> https://expo.io/learn
+>> https://docs.nativebase.io/docs/GetStarted.html
+>> https://github.com/oblador/react-native-vector-icons
