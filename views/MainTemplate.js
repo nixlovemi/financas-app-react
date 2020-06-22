@@ -1,9 +1,9 @@
 import React, { Component } from 'react';
-import { Text, ActivityIndicator, Alert, StyleSheet } from 'react-native';
-import { Container, Header, Body, Title, Content, Right, Button, ActionSheet, Card, CardItem } from 'native-base';
+import { Text, ActivityIndicator, Alert, StyleSheet, FlatList, Footer } from 'react-native';
+import { Container, Header, Body, Title, Content, Right, Button, ActionSheet, Card, CardItem, View } from 'native-base';
 import { WEBSERVICE_URL, WEBSERVICE_TOKEN, readRest } from '../lib/FetchRest';
 import Icon from 'react-native-vector-icons/MaterialIcons';
-import { numberToReal } from '../lib/Utils';
+/*import { numberToReal } from '../lib/Utils';*/
 import * as Font from 'expo-font';
 import styles from '../style';
 
@@ -62,7 +62,11 @@ function logOut(props) {
 export default class MainTemplate extends Component {
     state = {
         isReady: false,
-        arrSaldoContas: []
+        loadLcto: false,
+        showLoadMore: true,
+        arrSaldoContas: [],
+        arrLancamentos: [],
+        selected: false,
     }
     // usuId;
     // usuNome;
@@ -72,6 +76,11 @@ export default class MainTemplate extends Component {
     }
 
     componentDidMount = async() => {
+        await Font.loadAsync({
+            Roboto: require('native-base/Fonts/Roboto.ttf'),
+            Roboto_medium: require('native-base/Fonts/Roboto_medium.ttf')
+        });
+
         // @todo fazer carregar "session"
         // let jsonUsuario = getSession('Usuario');
         // console.log(jsonUsuario);
@@ -80,8 +89,9 @@ export default class MainTemplate extends Component {
         this.usuId      = Usuario["id"];
         this.usuNome    = Usuario["usuario"];
         console.log(Usuario);*/
-
-        let headers = {
+      
+        // saldo contas
+        let headersSC = {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -89,54 +99,91 @@ export default class MainTemplate extends Component {
             },
             body: JSON.stringify({mes: '03', ano: '2020', appkey: WEBSERVICE_TOKEN})
         }
-      
-        // saldo contas
-        let retSaldoContas  = await readRest(WEBSERVICE_URL + '/getSaldoContas', headers);
+
+        let retSaldoContas  = await readRest(WEBSERVICE_URL + '/getSaldoContas', headersSC);
         if ( retSaldoContas.isOk ) {
-            let arrSaldoContas          = retSaldoContas.result;
-            let arrSaldoContasFormatado = [];
-
-            arrSaldoContas.map((item) => {
-                arrSaldoContasFormatado.push(
-                    {nome: item.contaDesc, saldo: numberToReal(item.saldo), saldoInicial: numberToReal(item.saldoIni)}
-                );
-            });
-
-            this.setState({ arrSaldoContas: arrSaldoContasFormatado });
+            let arrSaldoContas = retSaldoContas.result;
+            this.setState({ arrSaldoContas: arrSaldoContas });
         }
         // ============
 
-        await Font.loadAsync({
-            Roboto: require('native-base/Fonts/Roboto.ttf'),
-            Roboto_medium: require('native-base/Fonts/Roboto_medium.ttf')
-        });
+        // lancamentos
+        let headersLCTO = {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json'
+            },
+            body: JSON.stringify({mesBase: '03', anoBase: '2020', /*limit: this.state.lctoStep, offset: this.state.lctoOffset,*/ appkey: WEBSERVICE_TOKEN})
+        }
+
+        let retLancamentos  = await readRest(WEBSERVICE_URL + '/getLancamentos', headersLCTO);
+        if ( retLancamentos.isOk ) {
+            // limit | offset | rows |
+            let arrLancamentos = retLancamentos.result.rows;
+            this.setState({ arrLancamentos: arrLancamentos });
+        }
+        // ===========
+        
         this.setState({ isReady: true });
     }
 
     renderSaldoContas () {
         return (
-            <Content padder>
-                <Card>
-                    <CardItem header bordered>
-                        <Text style={pgStyles.cardTitle}>Saldo Contas</Text>
-                    </CardItem>
-                    {
-                        this.state.arrSaldoContas.map((arrSaldoContas/*, key*/) => {
-                            return (
-                                <CardItem bordered style={pgStyles.cardItem}>
-                                    <Text style={pgStyles.nomeConta}>
-                                        {arrSaldoContas.nome}
-                                    </Text>
-                                    <Right style={pgStyles.saldoContas}>
-                                        <Text>Saldo: {arrSaldoContas.saldo}</Text>
-                                        <Text style={[pgStyles.saldoInicial]}>Saldo Inicial: {arrSaldoContas.saldoInicial}</Text>
-                                    </Right>
-                                </CardItem>
-                            );
-                        })
-                    }
-                </Card>
-            </Content>
+            <Card>
+                <CardItem header bordered>
+                    <Text style={pgStyles.cardTitle}>Saldo Contas</Text>
+                </CardItem>
+                {
+                    this.state.arrSaldoContas.map((arrSaldoContas) => {
+                        return (
+                            <View key={arrSaldoContas.contaSigla} style={pgStyles.cardItem}>
+                                <Text style={pgStyles.nomeConta}>
+                                    {arrSaldoContas.contaDesc}
+                                </Text>
+                                <Right style={pgStyles.saldoContas}>
+                                    <Text>Saldo: {arrSaldoContas.strSaldo}</Text>
+                                    <Text style={[pgStyles.saldoInicial]}>Saldo Inicial: {arrSaldoContas.strSaldoIni}</Text>
+                                </Right>
+                            </View>
+                        );
+                    })
+                }
+            </Card>
+        );
+    }
+
+    renderLancamentos () {
+        return (
+            <FlatList
+                data={this.state.arrLancamentos}
+                renderItem={({ item }) => (
+                    <Text>123</Text>
+                )}
+            />
+        );
+
+        return (
+            <Card>
+                <CardItem header bordered>
+                    <Text style={pgStyles.cardTitle}>Lançamentos</Text>
+                </CardItem>
+                {
+                    this.state.arrLancamentos.map((arrLancamentos) => {return (
+                            <View key={arrLancamentos.lanId} style={pgStyles.cardItem}>
+                                <Text>
+                                    {arrLancamentos.lanDespesa}
+                                    {"\n"}
+                                    <Text style={{fontSize: 10, color: '#666'}}>123 456</Text>
+                                </Text>
+                                <Right style={pgStyles.saldoContas}>
+                                    <Text>{arrLancamentos.lanValor}</Text>
+                                </Right>
+                            </View>
+                        );
+                    })
+                }
+            </Card>
         );
     }
 
@@ -144,7 +191,6 @@ export default class MainTemplate extends Component {
         if (!this.state.isReady) {
             return <ActivityIndicator />;
         }
-
         return (
             <Container style={{backgroundColor: '#F9F9F9'}}>
                 <Header style={styles.bgPrimary}>
@@ -168,9 +214,10 @@ export default class MainTemplate extends Component {
                         </Button>
                     </Right>
                 </Header>
-                {
-                    this.renderSaldoContas()
-                }
+                <Content padder>
+                    { /*this.renderSaldoContas()*/ }
+                    { this.renderLancamentos() }
+                </Content>
             </Container>
         );
     }
@@ -178,8 +225,8 @@ export default class MainTemplate extends Component {
 
 const pgStyles = StyleSheet.create({
     nomeConta: {fontSize: 15, fontWeight: 'bold'},
-    saldoContas: {display: 'flex', flex: 1},
+    saldoContas: {/*display: 'flex', flex: 1*/},
     saldoInicial: {fontSize: 11, color: '#666'},
-    cardItem: {paddingLeft: 10, paddingTop: 5, paddingRight: 10, paddingBottom: 5},
-    cardTitle: {display: 'flex', flex: 1, textAlign: 'center', fontSize: 15}
+    cardItem: {paddingLeft: 10, paddingTop: 5, paddingRight: 10, paddingBottom: 5, borderBottomWidth: 1, borderBottomColor:'#eaeaea', flex: 1, flexDirection: 'row'},
+    cardTitle: {display: 'flex', flex: 1, textAlign: 'center', fontSize: 15},
 });
